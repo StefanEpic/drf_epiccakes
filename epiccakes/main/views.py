@@ -2,15 +2,47 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from django_filters import rest_framework
 
-from .serializers import ProductSerializer
-from .models import Product
+from .serializers import ProductSerializer, ManufacturerSerializer, ClientSerializer, OrderSerializer, ReviewSerializer
+from .models import Product, Manufacturer, Client, Order, Review
 
 
 class ProductViewset(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    # filter_backends = [rest_framework.DjangoFilterBackend]
-    # filterset_fields = ['user__email']
+    filter_backends = [rest_framework.DjangoFilterBackend]
+    filterset_fields = ['title', 'type', 'category', 'manufacturer', 'price']
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+
+class ManufacturerViewset(viewsets.ModelViewSet):
+    queryset = Manufacturer.objects.all()
+    serializer_class = ManufacturerSerializer
+    filter_backends = [rest_framework.DjangoFilterBackend]
+    filterset_fields = ['title', 'city', 'metro_station', 'status', 'managers__phone', 'managers__email']
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+
+class ClientViewset(viewsets.ModelViewSet):
+    queryset = Client.objects.all()
+    serializer_class = ClientSerializer
+    filter_backends = [rest_framework.DjangoFilterBackend]
+    filterset_fields = ['title', 'city', 'metro_station', 'managers__phone', 'managers__email']
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+
+class OrderViewset(viewsets.ModelViewSet):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    filter_backends = [rest_framework.DjangoFilterBackend]
+    filterset_fields = ['client', 'product', 'manager', 'delivery_method', 'payment_method', 'status']
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+
+class ReviewViewset(viewsets.ModelViewSet):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    filter_backends = [rest_framework.DjangoFilterBackend]
+    filterset_fields = ['client', 'order', 'rating']
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     # def create(self, request, *args, **kwargs):

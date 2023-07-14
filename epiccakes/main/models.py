@@ -1,18 +1,13 @@
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 
-male = 'mal'
-female = 'fem'
-
-SEX = [
-    (male, 'Мужской'),
-    (female, 'Женский')
-]
-
 
 class Category(models.Model):
     title = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.title
 
 
 class Product(models.Model):
@@ -34,25 +29,31 @@ class Product(models.Model):
         (custards, 'Заварные')
     ]
 
-    name = models.CharField(max_length=255, unique=True)
+    title = models.CharField(max_length=255, unique=True)
     type = models.CharField(max_length=3, choices=TYPE)
     category = models.ManyToManyField(Category, related_name='products')
     manufacturer = models.ForeignKey('Manufacturer', on_delete=models.CASCADE, related_name='products')
-    weight = models.IntegerField(blank=True)
-    best_before_date = models.IntegerField(blank=True)
-    storage_temperature = models.IntegerField(blank=True)
-    proteins = models.IntegerField(blank=True)
-    fats = models.IntegerField(blank=True)
-    carbohydrates = models.IntegerField(blank=True)
-    energy_value = models.IntegerField(blank=True)
+    weight = models.IntegerField(null=True, blank=True)
+    best_before_date = models.IntegerField(null=True, blank=True)
+    storage_temperature = models.IntegerField(null=True, blank=True)
+    proteins = models.IntegerField(null=True, blank=True)
+    fats = models.IntegerField(null=True, blank=True)
+    carbohydrates = models.IntegerField(null=True, blank=True)
+    energy_value = models.IntegerField(null=True, blank=True)
     description = models.TextField(blank=True)
     price = models.FloatField()
+
+    def __str__(self):
+        return self.title
 
 
 class Image(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
     title = models.CharField(max_length=255, blank=True)
     data = models.URLField()
+
+    def __str__(self):
+        return self.product
 
 
 class Manufacturer(models.Model):
@@ -75,20 +76,24 @@ class Manufacturer(models.Model):
     status = models.CharField(max_length=3, choices=STATUS)
     registration_date = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return self.title
+
 
 class ManufacturerManager(models.Model):
     first_name = models.CharField(max_length=255)
     second_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
-    sex = models.CharField(max_length=3, choices=SEX, blank=True)
     phone = models.CharField(max_length=12)
     email = models.EmailField()
-    manufacturer = models.ForeignKey(Manufacturer, on_delete=models.CASCADE, related_name='manufacturermanagers')
-    job_title = models.CharField(max_length=255, blank=True)
+    manufacturer = models.ForeignKey(Manufacturer, on_delete=models.CASCADE, related_name='managers')
     registration_date = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f'{self.last_name} {self.first_name[0]}. {self.second_name[0]}.'
 
-class Company(models.Model):
+
+class Client(models.Model):
     title = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True)
     city = models.CharField(max_length=255)
@@ -99,28 +104,34 @@ class Company(models.Model):
     website = models.URLField(blank=True)
     registration_date = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return self.title
 
-class Client(models.Model):
+
+class ClientManager(models.Model):
     first_name = models.CharField(max_length=255)
     second_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
-    sex = models.CharField(max_length=3, choices=SEX, blank=True)
     phone = models.CharField(max_length=12)
     email = models.EmailField()
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='clients', blank=True)
-    job_title = models.CharField(max_length=255, blank=True)
+    company = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='managers', blank=True)
     registration_date = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f'{self.last_name} {self.first_name[0]}. {self.second_name[0]}.'
 
-class Manager(models.Model):
+
+class StaffManager(models.Model):
     first_name = models.CharField(max_length=255)
     second_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
-    sex = models.CharField(max_length=3, choices=SEX, blank=True)
     phone = models.CharField(max_length=12)
     email = models.EmailField()
     job_title = models.CharField(max_length=255)
     registration_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.last_name} {self.first_name[0]}. {self.second_name[0]}.'
 
 
 class Order(models.Model):
@@ -150,7 +161,7 @@ class Order(models.Model):
 
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='orders')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='orders')
-    manager = models.ForeignKey(Manager, on_delete=models.CASCADE, related_name='orders')
+    manager = models.ForeignKey(StaffManager, on_delete=models.CASCADE, related_name='orders')
     amount = models.IntegerField()
     delivery_method = models.CharField(max_length=4, choices=DELIV)
     payment_method = models.CharField(max_length=4, choices=PAY)

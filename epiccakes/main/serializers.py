@@ -1,4 +1,5 @@
-from .models import Category, Product, Image, Manufacturer, ManufacturerManager, Company, Client, Manager, Order, Review
+from .models import Category, Product, Image, Manufacturer, ManufacturerManager, Client, ClientManager, StaffManager, \
+    Order, Review
 from rest_framework import serializers
 
 
@@ -17,125 +18,213 @@ class ImageSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    category = CategorySerializer()
+    category = CategorySerializer(many=True)
+    images = ImageSerializer(many=True)
 
     class Meta:
         model = Product
-        fields = ['name', 'type', 'category', 'manufacturer', 'weight', 'best_before_date', 'storage_temperature',
-                  'proteins', 'fats', 'carbohydrates', 'energy_value', 'description', 'price']
+        fields = ['title', 'type', 'category', 'manufacturer', 'weight', 'best_before_date', 'storage_temperature',
+                  'proteins', 'fats', 'carbohydrates', 'energy_value', 'description', 'price', 'images']
 
+    def create(self, validated_data):
+        managers_data = validated_data.pop('managers')
+        instance = Manufacturer.objects.create(**validated_data)
+        instance.save()
 
-class ManufacturerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Manufacturer
-        fields = ['__all__']
+        for manager_data in managers_data:
+            ManufacturerManager.objects.create(manufacturer=instance, **manager_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        if 'managers' in validated_data:
+            managers_data = validated_data.pop('managers')
+
+            # if "id" is passed - the manager is updated, otherwise it is added
+            for manager in managers_data:
+                manager_id = manager.get('id', None)
+                if manager_id:
+                    inv_manager = ManufacturerManager.objects.get(id=manager_id)
+                    inv_manager.first_name = manager.get('first_name', inv_manager.first_name)
+                    inv_manager.second_name = manager.get('second_name', inv_manager.second_name)
+                    inv_manager.last_name = manager.get('last_name', inv_manager.last_name)
+                    inv_manager.phone = manager.get('phone', inv_manager.phone)
+                    inv_manager.email = manager.get('email', inv_manager.email)
+                    inv_manager.save()
+                else:
+                    # Fields phone and mail should not be empty
+                    manager_phone = manager.get('phone', None)
+                    manager_email = manager.get('email', None)
+                    if manager_phone and manager_email:
+                        if ManufacturerManager.objects.filter(phone=manager_phone).exists():
+                            raise serializers.ValidationError(
+                                'Update error. There is already a manager with this phone number')
+                        elif ManufacturerManager.objects.filter(email=manager_email).exists():
+                            raise serializers.ValidationError(
+                                'Update error. There is already a manager with this email')
+                        else:
+                            ManufacturerManager.objects.create(company=instance, **manager)
+                    else:
+                        raise serializers.ValidationError('Update error. Fields phone and mail should not be empty')
+
+            # clearing the manager list when passing an empty list
+            managers_dict = dict((i.id, i) for i in instance.managers.all())
+            if len(managers_data) == 0:
+                for manager in managers_dict.values():
+                    manager.delete()
+
+        return super(ManufacturerSerializer, self).update(instance, validated_data)
 
 
 class ManufacturerManagerSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
     class Meta:
         model = ManufacturerManager
-        fields = ['__all__']
+        fields = ['id', 'first_name', 'second_name', 'last_name', 'phone', 'email', 'registration_date']
+        read_only_fields = ['id', 'registration_date']
 
 
-class CompanySerializer(serializers.ModelSerializer):
+class ManufacturerSerializer(serializers.ModelSerializer):
+    managers = ManufacturerManagerSerializer(many=True)
+
     class Meta:
-        model = Company
-        fields = ['__all__']
+        model = Manufacturer
+        fields = ['title', 'description', 'city', 'street', 'house', 'office', 'metro_station', 'website', 'status',
+                  'registration_date', 'managers']
+        read_only_fields = ['id', 'status', 'registration_date']
+
+    def create(self, validated_data):
+        managers_data = validated_data.pop('managers')
+        instance = Manufacturer.objects.create(**validated_data)
+        instance.save()
+
+        for manager_data in managers_data:
+            ManufacturerManager.objects.create(manufacturer=instance, **manager_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        if 'managers' in validated_data:
+            managers_data = validated_data.pop('managers')
+
+            # if "id" is passed - the manager is updated, otherwise it is added
+            for manager in managers_data:
+                manager_id = manager.get('id', None)
+                if manager_id:
+                    inv_manager = ManufacturerManager.objects.get(id=manager_id)
+                    inv_manager.first_name = manager.get('first_name', inv_manager.first_name)
+                    inv_manager.second_name = manager.get('second_name', inv_manager.second_name)
+                    inv_manager.last_name = manager.get('last_name', inv_manager.last_name)
+                    inv_manager.phone = manager.get('phone', inv_manager.phone)
+                    inv_manager.email = manager.get('email', inv_manager.email)
+                    inv_manager.save()
+                else:
+                    # Fields phone and mail should not be empty
+                    manager_phone = manager.get('phone', None)
+                    manager_email = manager.get('email', None)
+                    if manager_phone and manager_email:
+                        if ManufacturerManager.objects.filter(phone=manager_phone).exists():
+                            raise serializers.ValidationError(
+                                'Update error. There is already a manager with this phone number')
+                        elif ManufacturerManager.objects.filter(email=manager_email).exists():
+                            raise serializers.ValidationError(
+                                'Update error. There is already a manager with this email')
+                        else:
+                            ManufacturerManager.objects.create(company=instance, **manager)
+                    else:
+                        raise serializers.ValidationError('Update error. Fields phone and mail should not be empty')
+
+            # clearing the manager list when passing an empty list
+            managers_dict = dict((i.id, i) for i in instance.managers.all())
+            if len(managers_data) == 0:
+                for manager in managers_dict.values():
+                    manager.delete()
+
+        return super(ManufacturerSerializer, self).update(instance, validated_data)
+
+
+class ClientManagerSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = ClientManager
+        fields = ['id', 'first_name', 'second_name', 'last_name', 'phone', 'email', 'registration_date']
+        read_only_fields = ['id', 'registration_date']
 
 
 class ClientSerializer(serializers.ModelSerializer):
+    managers = ClientManagerSerializer(many=True)
+
     class Meta:
         model = Client
-        fields = ['__all__']
+        fields = ['title', 'description', 'city', 'street', 'house', 'office', 'metro_station', 'website',
+                  'registration_date', 'managers']
+        read_only_fields = ['id', 'registration_date']
+
+    def create(self, validated_data):
+        managers_data = validated_data.pop('managers')
+        instance = Client.objects.create(**validated_data)
+        instance.save()
+
+        for manager_data in managers_data:
+            ClientManager.objects.create(company=instance, **manager_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        if 'managers' in validated_data:
+            managers_data = validated_data.pop('managers')
+
+            # if "id" is passed - the manager is updated, otherwise it is added
+            for manager in managers_data:
+                manager_id = manager.get('id', None)
+                if manager_id:
+                    inv_manager = ClientManager.objects.get(id=manager_id)
+                    inv_manager.first_name = manager.get('first_name', inv_manager.first_name)
+                    inv_manager.second_name = manager.get('second_name', inv_manager.second_name)
+                    inv_manager.last_name = manager.get('last_name', inv_manager.last_name)
+                    inv_manager.phone = manager.get('phone', inv_manager.phone)
+                    inv_manager.email = manager.get('email', inv_manager.email)
+                    inv_manager.save()
+                else:
+                    # Fields phone and mail should not be empty
+                    manager_phone = manager.get('phone', None)
+                    manager_email = manager.get('email', None)
+                    if manager_phone and manager_email:
+                        if ClientManager.objects.filter(phone=manager_phone).exists():
+                            raise serializers.ValidationError(
+                                'Update error. There is already a manager with this phone number')
+                        elif ClientManager.objects.filter(email=manager_email).exists():
+                            raise serializers.ValidationError(
+                                'Update error. There is already a manager with this email')
+                        else:
+                            ClientManager.objects.create(company=instance, **manager)
+                    else:
+                        raise serializers.ValidationError('Update error. Fields phone and mail should not be empty')
+
+            # clearing the manager list when passing an empty list
+            managers_dict = dict((i.id, i) for i in instance.managers.all())
+            if len(managers_data) == 0:
+                for manager in managers_dict.values():
+                    manager.delete()
+
+        return super(ClientSerializer, self).update(instance, validated_data)
 
 
-class ManagerSerializer(serializers.ModelSerializer):
+class StaffManagerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Manager
-        fields = ['__all__']
+        model = StaffManager
+        fields = ['first_name', 'second_name', 'last_name', 'phone', 'email', 'job_title', 'registration_date']
+        read_only_fields = ['id', 'registration_date']
 
 
 class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
-        fields = ['__all__']
+        fields = ['client', 'product', 'manager', 'amount', 'delivery_method', 'payment_method', 'date', 'status']
+        read_only_fields = ['id', 'date', 'status']
 
 
 class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
-        fields = ['__all__']
-
-# class MountainSerializer(serializers.ModelSerializer):
-#     user = UsersSerializer()
-#     coords = CoordsSerializer()
-#     level = LevelSerializer()
-#     images = ImageSerializer(many=True)
-#
-#     class Meta:
-#         model = Mountain
-#         fields = ['id', 'beauty_title', 'title', 'other_title', 'connect', 'add_time', 'user', 'coords', 'level',
-#                   'images', 'status']
-#         read_only_fields = ['id', 'status', 'add_time']
-#
-#     def create(self, validated_data):
-#         user_data = validated_data.pop('user')
-#         cords_data = validated_data.pop('coords')
-#         level_data = validated_data.pop('level')
-#         images_data = validated_data.pop('images')
-#
-#         user_email = user_data.get('email')
-#         if User.objects.filter(email=user_email).exists():
-#             user = User.objects.get(email=user_email)
-#         else:
-#             user = User.objects.create(**user_data)
-#
-#         coords = Coord.objects.create(**cords_data)
-#         level = Level.objects.create(**level_data)
-#
-#         instance = Mountain.objects.create(user=user, level=level, coords=coords, **validated_data)
-#         instance.save()
-#
-#         for image_data in images_data:
-#             MountainImage.objects.create(mountain=instance, **image_data)
-#         return instance
-#
-#     def update(self, instance, validated_data):
-#         if instance.status == 'NEW':
-#             if 'user' in validated_data:
-#                 raise serializers.ValidationError('Update error. User fields are not changeable')
-#
-#             if 'coords' in validated_data:
-#                 coords = self.fields['coords']
-#                 coords_instance = instance.coords
-#                 coords_data = validated_data.pop('coords')
-#                 coords.update(coords_instance, coords_data)
-#
-#             if 'level' in validated_data:
-#                 level = self.fields['level']
-#                 level_instance = instance.level
-#                 level_data = validated_data.pop('level')
-#                 level.update(level_instance, level_data)
-#
-#             if 'images' in validated_data:
-#                 images_data = validated_data.pop('images')
-#
-#                 # if "id" is passed - the image is updated, otherwise it is added
-#                 for image in images_data:
-#                     image_id = image.get('id', None)
-#                     if image_id:
-#                         inv_image = MountainImage.objects.get(id=image_id)
-#                         inv_image.data = image.get('data', inv_image.data)
-#                         inv_image.title = image.get('title', inv_image.title)
-#                         inv_image.save()
-#                     else:
-#                         MountainImage.objects.create(mountain=instance, **image)
-#
-#                 # clearing the image list when passing an empty list
-#                 images_dict = dict((i.id, i) for i in instance.images.all())
-#                 if len(images_data) == 0:
-#                     for image in images_dict.values():
-#                         image.delete()
-#
-#             return super(MountainSerializer, self).update(instance, validated_data)
-#         raise serializers.ValidationError('Update error. Object status is not <NEW>')
+        fields = ['client', 'order', 'rating', 'text', 'date_in']
+        read_only_fields = ['id', 'date_in']
