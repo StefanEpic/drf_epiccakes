@@ -31,7 +31,7 @@ class Product(models.Model):
 
     title = models.CharField(max_length=255, unique=True)
     type = models.CharField(max_length=3, choices=TYPE)
-    category = models.ManyToManyField(Category, related_name='products')
+    category = models.ManyToManyField(Category, related_name='products', blank=True)
     manufacturer = models.ForeignKey('Manufacturer', on_delete=models.CASCADE, related_name='products')
     weight = models.IntegerField(null=True, blank=True)
     best_before_date = models.IntegerField(null=True, blank=True)

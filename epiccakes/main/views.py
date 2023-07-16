@@ -2,8 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from django_filters import rest_framework
 
-from .serializers import ProductSerializer, ManufacturerSerializer, ClientSerializer, OrderSerializer, ReviewSerializer
-from .models import Product, Manufacturer, Client, Order, Review
+from .serializers import ProductSerializer, CategorySerializer, ManufacturerSerializer, ClientSerializer, OrderSerializer, ReviewSerializer
+from .models import Product, Category, Manufacturer, Client, Order, Review
 
 
 class ProductViewset(viewsets.ModelViewSet):
@@ -12,6 +12,12 @@ class ProductViewset(viewsets.ModelViewSet):
     filter_backends = [rest_framework.DjangoFilterBackend]
     filterset_fields = ['title', 'type', 'category', 'manufacturer', 'price']
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+
+class CategoryViewset(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    http_method_names = ['get', 'head', 'options']
 
 
 class ManufacturerViewset(viewsets.ModelViewSet):

@@ -7,6 +7,9 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['title', 'description']
+        extra_kwargs = {
+            'title': {'validators': []},
+        }
 
 
 class ImageSerializer(serializers.ModelSerializer):
@@ -27,52 +30,49 @@ class ProductSerializer(serializers.ModelSerializer):
                   'proteins', 'fats', 'carbohydrates', 'energy_value', 'description', 'price', 'images']
 
     def create(self, validated_data):
-        managers_data = validated_data.pop('managers')
-        instance = Manufacturer.objects.create(**validated_data)
-        instance.save()
+        images_data = validated_data.pop('images')
+        category_data = validated_data.pop('category')
+        instance = Product.objects.create(**validated_data)
 
-        for manager_data in managers_data:
-            ManufacturerManager.objects.create(manufacturer=instance, **manager_data)
-        return instance
+        for image_data in images_data:
+            Image.objects.create(product=instance, **image_data)
+
+        category_list = Category.objects.all().values_list('title', flat=True)
+        for category in category_data:
+            title = category.get('title')
+            if title in category_list:
+                category_id = Category.objects.get(title=title)
+                instance.category.add(category_id)
+
+        if instance.category.count() != 0:
+            instance.save()
+            return instance
+        else:
+            raise serializers.ValidationError('Create error. Incorrect value of the Category field')
+
 
     def update(self, instance, validated_data):
-        if 'managers' in validated_data:
-            managers_data = validated_data.pop('managers')
+        if 'images' in validated_data:
+            images_data = validated_data.pop('images')
 
-            # if "id" is passed - the manager is updated, otherwise it is added
-            for manager in managers_data:
-                manager_id = manager.get('id', None)
-                if manager_id:
-                    inv_manager = ManufacturerManager.objects.get(id=manager_id)
-                    inv_manager.first_name = manager.get('first_name', inv_manager.first_name)
-                    inv_manager.second_name = manager.get('second_name', inv_manager.second_name)
-                    inv_manager.last_name = manager.get('last_name', inv_manager.last_name)
-                    inv_manager.phone = manager.get('phone', inv_manager.phone)
-                    inv_manager.email = manager.get('email', inv_manager.email)
+            # if "id" is passed - the image is updated, otherwise it is added
+            for image in images_data:
+                image_id = image.get('id', None)
+                if image_id:
+                    inv_manager = ManufacturerManager.objects.get(id=image_id)
+                    inv_manager.title = image.get('title', inv_manager.title)
+                    inv_manager.data = image.get('data', inv_manager.data)
                     inv_manager.save()
                 else:
-                    # Fields phone and mail should not be empty
-                    manager_phone = manager.get('phone', None)
-                    manager_email = manager.get('email', None)
-                    if manager_phone and manager_email:
-                        if ManufacturerManager.objects.filter(phone=manager_phone).exists():
-                            raise serializers.ValidationError(
-                                'Update error. There is already a manager with this phone number')
-                        elif ManufacturerManager.objects.filter(email=manager_email).exists():
-                            raise serializers.ValidationError(
-                                'Update error. There is already a manager with this email')
-                        else:
-                            ManufacturerManager.objects.create(company=instance, **manager)
-                    else:
-                        raise serializers.ValidationError('Update error. Fields phone and mail should not be empty')
+                    Image.objects.create(product=instance, **image)
 
-            # clearing the manager list when passing an empty list
-            managers_dict = dict((i.id, i) for i in instance.managers.all())
-            if len(managers_data) == 0:
-                for manager in managers_dict.values():
-                    manager.delete()
+            # clearing the image list when passing an empty list
+            images_dict = dict((i.id, i) for i in instance.images.all())
+            if len(images_data) == 0:
+                for image in images_dict.values():
+                    image.delete()
 
-        return super(ManufacturerSerializer, self).update(instance, validated_data)
+        return super(ProductSerializer, self).update(instance, validated_data)
 
 
 class ManufacturerManagerSerializer(serializers.ModelSerializer):
